@@ -81,6 +81,15 @@ static const CGFloat VTFooterBottomMargin = 20;
     return [[self.class alloc] initWithAcknowledgementsPlistPath:path];
 }
 
+- (instancetype)initWithPaths:(NSArray *)acknowledgementsPlistPaths {
+    self = [super initWithStyle:UITableViewStyleGrouped];
+    if (self) {
+        [self initWithAcknowledgementsPlistPaths:acknowledgementsPlistPaths];
+    }
+    
+    return self;
+}
+
 - (instancetype)initWithAcknowledgementsPlistPath:(NSString *)acknowledgementsPlistPath
 {
     self = [super initWithStyle:UITableViewStyleGrouped];
@@ -145,6 +154,49 @@ static const CGFloat VTFooterBottomMargin = 20;
     self.acknowledgements = acknowledgements;
 }
 
+- (void)initWithAcknowledgementsPlistPaths:(NSArray *)acknowledgementsPlistPaths {
+    self.title = self.class.localizedTitle;
+    
+    NSMutableArray *mutableAcknowledgements = NSMutableArray.new;
+    int index = 0;
+    for (NSString *plistPathName in acknowledgementsPlistPaths) {
+        mutableAcknowledgements = [self addPListPathToAcknowledgements:plistPathName acknowledgements:mutableAcknowledgements index:index];
+        index += 1;
+    }
+    
+    [mutableAcknowledgements sortUsingComparator:^NSComparisonResult(VTAcknowledgement *obj1, VTAcknowledgement *obj2) {
+        return [obj1.title compare:obj2.title
+                           options:kNilOptions
+                             range:NSMakeRange(0, obj1.title.length)
+                            locale:[NSLocale currentLocale]];
+    }];
+    
+    self.acknowledgements = [mutableAcknowledgements copy];
+}
+
+- (NSMutableArray *)addPListPathToAcknowledgements:(NSString *)plistPathName acknowledgements:(NSMutableArray *)acknowledgements index:(int)index {
+    NSString *plistPath = [self.class acknowledgementsPlistPathForName:plistPathName];
+    VTAcknowledgementsParser *parser = [[VTAcknowledgementsParser alloc] initWithAcknowledgementsPlistPath:plistPath];
+    if (index == 0) {
+        if ([parser.header isEqualToString:VTDefaultHeaderText]) {
+            self.headerText = parser.header;
+        }
+        else if (![parser.header isEqualToString:@""]) {
+            self.headerText = parser.header;
+        }
+        
+        if ([parser.footer isEqualToString:VTDefaultFooterText] ||
+            [parser.footer isEqualToString:VTDefaultFooterTextLegacy]) {
+            self.footerText = [VTAcknowledgementsViewController localizedCocoaPodsFooterText];
+        }
+        else if (![parser.footer isEqualToString:@""]) {
+            self.footerText = parser.footer;
+        }
+    }
+    [acknowledgements addObjectsFromArray:parser.acknowledgements];
+    return acknowledgements;
+}
+
 
 #pragma mark - Localization
 
@@ -188,6 +240,8 @@ static const CGFloat VTFooterBottomMargin = 20;
 - (void)viewDidLoad
 {
     [super viewDidLoad];
+    
+    self.navigationItem.backBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"" style:self.navigationItem.backBarButtonItem.style target:nil action:nil];
 
     if (self.headerText) {
         [self configureHeaderView];
